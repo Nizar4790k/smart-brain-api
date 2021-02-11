@@ -117,7 +117,7 @@ app.put('/image',(req,res)=>{
     
     database.users.forEach(user =>{
       
-        console.log(user,id);
+        
 
         if(user.id === id){
         
