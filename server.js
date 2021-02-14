@@ -9,119 +9,118 @@ const { response } = require('express');
 const db = knex({
     client: 'pg',
     connection: {
-      host : '127.0.0.1',
-      user : 'postgres',
-      password : 'postgres',
-      database : 'smart-brain'
+        host: '127.0.0.1',
+        user: 'postgres',
+        password: 'postgres',
+        database: 'smart-brain'
     }
-  });
-
-db.select('*').from('users').then(data=>{
-    console.log(data);
 });
+
 
 app.use(bodyParser.json());
 app.use(cors());
 
-const database = {
-    users:[
-        {
-            id:'123',
-            name:'John',
-            email:'john@gmail.com',
-            password:'cookies',
-            entries:0,
-            joined:new Date()
-    },
-    {
-        id:'124',
-        name:'Sally',
-        email:'sally@gmail.com',
-        password:'bananas',
-        entries:0,
-        joined:new Date()
-
-    }
 
 
-    ],
-    login:{
-        id:'987',
-        hash:'',
-        email:'john@gmail.com'
-    }
-}
+app.get('/', (req, res) => {
 
-app.get('/',(req,res)=>{
-
-    res.send(database.users);
+    res.json("home :)");
 
 });
 
-app.post('/signin',(req,res)=>{
-    
-    
+app.post('/signin', (req, res) => {
 
-    if(req.body.email===database.users[0].email && 
-        req.body.password===database.users[0].password)
-    {
-        
-        res.json(database.users[0])
-    }else{
-        res.status(400).json('error loggin in');
-    }
+   db.select('email','hash').from('login')
+   .where('email','=',req.body.email)
+   .then(data=>{
+     const isValid =  bcrypt.compareSync(req.body.password,data[0].hash);
 
-    res.send('signin');
+     if(isValid){
+        return db.select('*').from('users')
+         .where('email','=',req.body.email)
+         .then(user =>{
+           
+             res.json(user[0]);
+         })
+     }else{
+         res.status(400).json('wrong credentials');
+     }
+
+   })
+
 });
 
-app.post('/register',(req,res)=>{
-    const{email,name,password}=req.body;
+app.post('/register', (req, res) => {
+    const { email, name, password } = req.body;
 
-    
-    db('users')
-    .returning('*')
-    .insert({
-        email:email,
-        name:name,
-        joined:new Date()
-    }).then(user=>{
-        res.json(user[0]);
-    }).catch(err=>res.status(400).json('unable to register'));
 
-    
+    var hash = bcrypt.hashSync(password);
 
-   
+    bcrypt.compareSync("bacon", hash); // true
+    bcrypt.compareSync("veggies", hash); // false
+
+    db.transaction(trx => {
+        trx.insert({
+            hash: hash,
+            email: email
+        }).into('login')
+            .returning('email')
+            .then(loginEmail => {
+
+                return trx('users')
+                    .returning('*')
+                    .insert({
+                        email: loginEmail[0],
+                        name: name,
+                        joined: new Date()
+                    }).then(user => {
+                        res.json(user[0]);
+                    })
+                    
+
+            })
+            .then(trx.commit)
+            .catch(trx.rollback)
+    }).catch(err => res.status(400).json('unable to register'));
+
+
+
+
+
+
+
 })
 
-app.get('/profile/:id',(req,res)=>{
+app.get('/profile/:id', (req, res) => {
     const { id } = req.params;
-    
-    
-    db.select('*').from('users').where({id:id}).then(user=>{
-        
-        if(user.length){
+
+
+    db.select('*').from('users').where({ id: id }).then(user => {
+
+        if (user.length) {
             res.json(user[0]);
-        }else{
+        } else {
             res.status(404).json("not found")
         }
-        
-    }).catch(err=>res.status(400).json('error getting user'));
 
-    
+    }).catch(err => res.status(400).json('error getting user'));
+
+
 })
 
-app.put('/image',(req,res)=>{
-    
+app.put('/image', (req, res) => {
+
     const { id } = req.body;
-    db('users').where('id','=',id)
-    .increment('entries',1)
-    .returning('entries')
-    .then(entries=>{
-        res.json(entries[0])
-    })
-    .catch(err=>{
-        console.log(err);
-        res.status(400).json('unable to get entries')});
+    db('users').where('id', '=', id)
+        .increment('entries', 1)
+        .returning('entries')
+        .then(entries => {
+            res.json(entries[0])
+        })
+        .catch(err => {
+            console.log(err);
+            res.status(400).json('unable to get entries')
+        });
 
 });
 
@@ -139,7 +138,7 @@ bcrypt.compare("veggies", hash, function(err, res) {
 });
 */
 
-app.listen(3001,()=>{
+app.listen(3001, () => {
     console.log("app is runing on port 3001");
 })
 
