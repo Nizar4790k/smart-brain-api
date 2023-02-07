@@ -2,7 +2,7 @@ const Clarifai = require('clarifai');
 const { restart } = require('nodemon');
 
 const app = new Clarifai.App({
-    apiKey: 'c6b1f13df2fa463f9db6b8ea58d42b53'
+    apiKey: process.env.CLARIFAI_API
    })
 
 
